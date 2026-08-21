@@ -119,6 +119,71 @@ func loadProto(path string) (*router.GeoSiteList, error) {
 	return list, nil
 }
 
+// ---------- Protobuf list / dump (for debugging) ----------
+
+func cmdListCategoriesProto(path string) error {
+	list, err := loadProto(path)
+	if err != nil {
+		return err
+	}
+	// Sort for stable output
+	sort.Slice(list.Entry, func(i, j int) bool {
+		return list.Entry[i].CountryCode < list.Entry[j].CountryCode
+	})
+	for _, site := range list.Entry {
+		fmt.Printf("%s\t%d\n", strings.ToUpper(site.CountryCode), len(site.Domain))
+	}
+	fmt.Printf("# total categories: %d\n", len(list.Entry))
+	return nil
+}
+
+func cmdListSitesProto(path, category string) error {
+	list, err := loadProto(path)
+	if err != nil {
+		return err
+	}
+	want := strings.ToUpper(category)
+	for _, site := range list.Entry {
+		if strings.ToUpper(site.CountryCode) == want {
+			for _, d := range site.Domain {
+				et, err := domainTypeToEntryType(d.Type)
+				if err != nil {
+					return fmt.Errorf("category %s: %w", site.CountryCode, err)
+				}
+				val := buildValue(d)
+				fmt.Printf("%s:%s\n", et, val)
+			}
+			fmt.Printf("# %s: %d entries\n", strings.ToUpper(site.CountryCode), len(site.Domain))
+			return nil
+		}
+	}
+	return fmt.Errorf("category %q not found", category)
+}
+
+func cmdDumpProto(path string) error {
+	list, err := loadProto(path)
+	if err != nil {
+		return err
+	}
+	sort.Slice(list.Entry, func(i, j int) bool {
+		return list.Entry[i].CountryCode < list.Entry[j].CountryCode
+	})
+	for _, site := range list.Entry {
+		name := strings.ToUpper(site.CountryCode)
+		fmt.Printf("===== %s (%d) =====\n", name, len(site.Domain))
+		for _, d := range site.Domain {
+			et, err := domainTypeToEntryType(d.Type)
+			if err != nil {
+				return fmt.Errorf("category %s: %w", name, err)
+			}
+			val := buildValue(d)
+			fmt.Printf("  %s:%s\n", et, val)
+		}
+		fmt.Println()
+	}
+	return nil
+}
+
 // ---------- Convert protobuf → custom binary (with entry dedup) ----------
 
 func convert(protoPath, outPath string) error {
@@ -426,6 +491,20 @@ func cmdDump(path string) error {
 	return nil
 }
 
+// isCustomBinary reports whether the file starts with the custom "geosite\0" magic.
+func isCustomBinary(path string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	var hdr [8]byte
+	if _, err := io.ReadFull(f, hdr[:]); err != nil {
+		return false, err
+	}
+	return string(hdr[:7]) == magic, nil
+}
+
 func main() {
 	listCat := flag.Bool("list-categories", false, "List all categories (and entry counts)")
 	listSites := flag.String("list-sites", "", "List entries of the given category")
@@ -445,19 +524,40 @@ func main() {
 			fmt.Fprintln(os.Stderr, "-f is required")
 			os.Exit(1)
 		}
-		err = cmdListCategories(*file)
+		bin, errDetect := isCustomBinary(*file)
+		if errDetect != nil {
+			err = errDetect
+		} else if bin {
+			err = cmdListCategories(*file)
+		} else {
+			err = cmdListCategoriesProto(*file)
+		}
 	case *listSites != "":
 		if *file == "" {
 			fmt.Fprintln(os.Stderr, "-f is required")
 			os.Exit(1)
 		}
-		err = cmdListSites(*file, *listSites)
+		bin, errDetect := isCustomBinary(*file)
+		if errDetect != nil {
+			err = errDetect
+		} else if bin {
+			err = cmdListSites(*file, *listSites)
+		} else {
+			err = cmdListSitesProto(*file, *listSites)
+		}
 	case *dump:
 		if *file == "" {
 			fmt.Fprintln(os.Stderr, "-f is required")
 			os.Exit(1)
 		}
-		err = cmdDump(*file)
+		bin, errDetect := isCustomBinary(*file)
+		if errDetect != nil {
+			err = errDetect
+		} else if bin {
+			err = cmdDump(*file)
+		} else {
+			err = cmdDumpProto(*file)
+		}
 	default:
 		flag.Usage()
 		os.Exit(1)
