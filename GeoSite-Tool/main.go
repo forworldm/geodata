@@ -18,7 +18,7 @@ import (
 // ---------- Custom binary format ----------
 //
 // Binary {
-//     magic: byte[8] = "geosite\0"   (we pad with null to 8 bytes)
+//     magic: byte[8] = "etisoeg\0"   (we pad with null to 8 bytes)
 //     category_count: UInt32 (LE)
 //     category_offsets: Offset[category_count]   // absolute offsets from file start
 //     categories: Category[category_count]
@@ -44,7 +44,7 @@ import (
 // Offset = UInt32 (absolute from file start)
 // All multi-byte integers are little-endian.
 
-const magic = "geosite" // written as 8 bytes: 'g','e','o','s','i','t','e',0
+const magic = "etisoeg" // written as 8 bytes: 'e','t','i','s','o','e','g',0
 
 type EntryType uint8
 
@@ -491,7 +491,7 @@ func cmdDump(path string) error {
 	return nil
 }
 
-// isCustomBinary reports whether the file starts with the custom "geosite\0" magic.
+// isCustomBinary reports whether the file starts with the custom "etisoeg\0" magic.
 func isCustomBinary(path string) (bool, error) {
 	f, err := os.Open(path)
 	if err != nil {

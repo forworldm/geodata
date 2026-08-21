@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	magicStr     = "geoip0"
+	magicStr     = "0pioeg"
 	magicLen     = 8
 	defaultOut   = "geoip.bin"
 	ip4EntrySize = 5
