@@ -1,0 +1,58 @@
+name: Release geosite.dat
+
+on:
+  schedule:
+    - cron: "0 0 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Checkout domain-list-community
+        uses: actions/checkout@v7
+        with:
+          repository: v2fly/domain-list-community
+          ref: master
+          path: source
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: source/go.mod
+          cache-dependency-path: source/go.sum
+
+      - name: Build
+        run: |
+          chmod +x geosite/build.sh
+          ./geosite/build.sh source
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(date +%Y%m%d%H%M%S)
+          gh release create "$TAG" \
+            --latest \
+            --title "$TAG" \
+            ./geosite.dat \
+            ./geosite.dat.sha256
+
+      - name: Cleanup old releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release list \
+            --limit 100 \
+            --json tagName,isLatest \
+            --jq '[.[] | select(.isLatest == false) | .tagName] | .[12:] | .[]' |
+          while read -r tag; do
+            gh release delete "$tag" --yes
+          done
