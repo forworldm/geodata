@@ -1,0 +1,40 @@
+{
+  "input": [
+    {
+      "type": "ipinfoCountryCSV",
+      "action": "add",
+      "args": {
+        "uri": "./ipinfo/ipinfo_lite.csv.gz"
+      }
+    },
+    {
+      "type": "cutter",
+      "action": "remove",
+      "args": {
+        "wantedList": ["cn"]
+      }
+    },
+    {
+      "type": "text",
+      "action": "add",
+      "args": {
+        "name": "cn",
+        "uri": "https://gaoyifan.github.io/china-operator-ip/china46.txt"
+      }
+    },
+    {
+      "type": "private",
+      "action": "add"
+    }
+  ],
+  "output": [
+    {
+      "type": "v2rayGeoIPDat",
+      "action": "output",
+      "args": {
+        "outputDir": "./output",
+        "outputName": "geoip.dat"
+      }
+    }
+  ]
+}
