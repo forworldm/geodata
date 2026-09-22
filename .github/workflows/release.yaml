@@ -23,16 +23,40 @@ jobs:
           ref: master
           path: source
 
+      - name: Checkout geoip
+        uses: actions/checkout@v7
+        with:
+          repository: v2fly/geoip
+          ref: master
+          path: geoip-source
+
+      - name: Override geoip source
+        run: |
+          cp -rpf geoip/* geoip-source/
+
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
           go-version-file: source/go.mod
           cache-dependency-path: source/go.sum
 
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: geoip-source/go.mod
+          cache-dependency-path: geoip-source/go.sum
+
       - name: Build
         run: |
           chmod +x geosite/build.sh
           ./geosite/build.sh source
+
+      - name: Build geoip
+        env:
+          IPINFO_TOKEN: ${{ secrets.IPINFO_TOKEN }}
+        run: |
+          chmod +x geoip-source/build.sh
+          ./geoip-source/build.sh geoip-source
 
       - name: Release
         env:
@@ -43,7 +67,9 @@ jobs:
             --latest \
             --title "$TAG" \
             ./geosite.dat \
-            ./geosite.dat.sha256
+            ./geosite.dat.sha256 \
+            ./geoip.dat \
+            ./geoip.dat.sha256
 
       - name: Cleanup old releases
         env:
